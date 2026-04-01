@@ -26,11 +26,37 @@ directories.forEach(dir => {
   }
 });
 
-// Middleware
-app.use(cors({
-  origin: '*',
-  credentials: true
-}));
+// ========== CORS CONFIGURATION - ALLOW ALL ORIGINS ==========
+const corsOptions = {
+  origin: '*', // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  preflightContinue: false,
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// Additional headers for all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight immediately
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -63,6 +89,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test CORS endpoint
+app.get('/api/test-cors', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'CORS is working!',
+    origin: req.headers.origin || 'unknown'
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
@@ -73,8 +108,16 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found'
+  });
+});
+
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n✨ Charm backend running on http://localhost:${PORT}`);
   console.log(`📁 Uploads directory: ${path.join(__dirname, 'uploads')}`);
   console.log(`💾 Data directory: ${path.join(__dirname, 'data')}`);
@@ -83,7 +126,8 @@ app.listen(PORT, () => {
   console.log(`   POST /api/chat/message - Chat with AI stylist`);
   console.log(`   POST /api/uploads/file - Upload files`);
   console.log(`   GET  /api/history/conversations - Get chat history`);
-  console.log(`   GET  /api/favorites - Get favorite messages\n`);
+  console.log(`   GET  /api/favorites - Get favorite messages`);
+  console.log(`\n🌐 CORS: Enabled for all origins`);
 });
 
 export default app;
